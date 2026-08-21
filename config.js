@@ -1,0 +1,1 @@
+window.APP_CONFIG={endpoint:'https://fra.cloud.appwrite.io/v1',projectId:'6a87695f00256a7366a3',databaseId:'sabor_mar',customersTable:'customers',ticketsTable:'tickets',campaignsTable:'campaigns',ticketsBucket:'tickets'};
