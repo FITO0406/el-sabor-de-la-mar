@@ -1,0 +1,1 @@
+const CACHE='sabor-mar-v1';const ASSETS=['./','./index.html','./cliente.html','./admin.html','./styles.css','./config.js','./manifest-client.json','./manifest-admin.json'];self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
