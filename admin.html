@@ -7,150 +7,18 @@
   <title>Sabor Mar Admin</title>
   <link rel="manifest" href="manifest-admin.json">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@26.2.0"></script>
 </head>
 <body>
 <div class="shell">
   <h1>⚓ Sabor Mar Admin</h1>
-
-  <section id="auth" class="card">
-    <h2>Acceso administrador</h2>
-    <form id="loginForm">
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="email" required>
-      <label for="pass">Contraseña</label>
-      <input id="pass" type="password" autocomplete="current-password" minlength="8" required>
-      <button id="loginBtn" type="submit">Entrar</button>
-    </form>
-    <div id="msg" class="status" role="status" aria-live="polite"></div>
-  </section>
-
-  <section id="dash" class="hidden">
-    <div class="grid">
-      <div class="metric"><div class="muted">Clientes</div><div id="clients" class="v">0</div></div>
-      <div class="metric"><div class="muted">Marketing</div><div id="marketingCount" class="v">0</div></div>
-      <div class="metric"><div class="muted">Pendientes</div><div id="pending" class="v">0</div></div>
-      <div class="metric"><div class="muted">Participaciones</div><div id="entries" class="v">0</div></div>
-    </div>
-
-    <div class="card"><button id="logout" type="button" class="secondary">Salir</button></div>
-
-    <div class="card"><h2>Tickets</h2><div id="ticketList"></div><div id="ticketMsg" class="status" role="status" aria-live="polite"></div></div>
-    <div class="card"><h2>Clientes</h2><div id="customerList"></div></div>
-
-    <div class="card">
-      <h2>Promoción</h2>
-      <div class="row">
-        <div><label for="campName">Nombre</label><input id="campName"></div>
-        <div><label for="euros">€ por participación</label><input id="euros" type="number" min="0.01" step="0.01"></div>
-      </div>
-      <div class="row">
-        <div><label for="mult">Multiplicador domicilio</label><input id="mult" type="number" min="1" step="1"></div>
-        <div class="action-end"><button id="saveCamp" type="button">Guardar</button></div>
-      </div>
-      <div id="campMsg" class="status" role="status" aria-live="polite"></div>
-      <br><button id="newCamp" type="button" class="danger">Nueva promoción / poner contadores a cero</button>
-    </div>
-  </section>
+  <section id="auth" class="card"><h2>Acceso administrador</h2><form id="loginForm"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required><label for="pass">Contraseña</label><input id="pass" type="password" autocomplete="current-password" minlength="8" required><button id="loginBtn" type="submit">Entrar</button></form><div id="msg" class="status" role="status" aria-live="polite"></div></section>
+  <section id="dash" class="hidden"><div class="grid"><div class="metric"><div class="muted">Clientes</div><div id="clients" class="v">0</div></div><div class="metric"><div class="muted">Marketing</div><div id="marketingCount" class="v">0</div></div><div class="metric"><div class="muted">Pendientes</div><div id="pending" class="v">0</div></div><div class="metric"><div class="muted">Participaciones</div><div id="entries" class="v">0</div></div></div><div class="card"><button id="logout" type="button" class="secondary">Salir</button></div><div class="card"><h2>Tickets</h2><div id="ticketList"></div><div id="ticketMsg" class="status" role="status" aria-live="polite"></div></div><div class="card"><h2>Clientes</h2><div id="customerList"></div></div><div class="card"><h2>Promoción</h2><div class="row"><div><label for="campName">Nombre</label><input id="campName"></div><div><label for="euros">€ por participación</label><input id="euros" type="number" min="0.01" step="0.01"></div></div><div class="row"><div><label for="mult">Multiplicador domicilio</label><input id="mult" type="number" min="1" step="1"></div><div class="action-end"><button id="saveCamp" type="button">Guardar</button></div></div><div id="campMsg" class="status" role="status" aria-live="polite"></div><br><button id="newCamp" type="button" class="danger">Nueva promoción / poner contadores a cero</button></div></section>
 </div>
-
 <script src="config.js"></script>
 <script>
 (() => {
-  'use strict';
-  const C=window.APP_CONFIG;
-  const $=id=>document.getElementById(id);
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const eur=n=>Number(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
-  const client=new Appwrite.Client().setEndpoint(C.endpoint).setProject(C.projectId);
-  const account=new Appwrite.Account(client);
-  const db=new Appwrite.TablesDB(client);
-  const storage=new Appwrite.Storage(client);
-  const ID=Appwrite.ID;
-  let user=null;
-
-  function show(id,text,ok=false){const el=$(id);el.textContent=text||'';el.className='status '+(ok?'ok':'err');}
-  function busy(btn,on,text){btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=text;}else if(btn.dataset.old){btn.textContent=btn.dataset.old;}}
-  async function me(){try{return await account.get();}catch{return null;}}
-  async function rows(tableId){const r=await db.listRows({databaseId:C.databaseId,tableId:tableId,total:false});return r.rows||[];}
-  async function isAdmin(){user=await me();return !!user&&Array.isArray(user.labels)&&user.labels.includes('admin');}
-
-  async function render(){
-    try{
-      if(!(await isAdmin())){
-        $('dash').classList.add('hidden');$('auth').classList.remove('hidden');
-        if(user) show('msg','Tu usuario ha iniciado sesión, pero no tiene la etiqueta admin.');
-        return;
-      }
-      $('auth').classList.add('hidden');$('dash').classList.remove('hidden');show('msg','');
-      const [cs,ts,camps]=await Promise.all([rows(C.customersTable),rows(C.ticketsTable),rows(C.campaignsTable)]);
-      const c=camps.find(x=>x.active)||null;
-      const current=c?ts.filter(t=>t.campaign_id===c.$id):[];
-      $('clients').textContent=cs.length;
-      $('marketingCount').textContent=cs.filter(x=>x.marketing_consent).length;
-      $('pending').textContent=ts.filter(x=>x.status==='pendiente').length;
-      $('entries').textContent=current.filter(x=>x.status==='validado').reduce((a,t)=>a+Number(t.entries||0),0);
-
-      $('customerList').innerHTML=cs.length?`<div class="table-wrap"><table><tr><th>Nombre</th><th>Email</th><th>Marketing</th></tr>${cs.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.email)}</td><td>${x.marketing_consent?'Sí':'No'}</td></tr>`).join('')}</table></div>`:'<div class="muted">Sin clientes.</div>';
-
-      $('ticketList').innerHTML=ts.length?ts.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).map(t=>{
-        let photo='';
-        if(t.photo_file_id){
-          try{photo=`<img class="photo" alt="Foto de ticket" src="${esc(String(storage.getFileView({bucketId:C.ticketsBucket,fileId:t.photo_file_id})))}">`;}catch{}
-        }
-        return `<div class="item"><div class="top"><b>${esc(t.customer_email)}</b><span class="badge ${esc(t.status)}">${esc(t.status)}</span></div><div class="muted">${eur(t.amount)} · ${esc(t.ticket_number||'sin número')} · ${esc(t.channel)}</div>${photo}${t.status==='pendiente'?`<p><button type="button" data-id="${esc(t.$id)}" data-ok="1">Validar</button> <button type="button" data-id="${esc(t.$id)}" data-ok="0" class="danger">Rechazar</button></p>`:''}</div>`;
-      }).join(''):'<div class="muted">Sin tickets.</div>';
-
-      $('campName').value=c?.name||'';$('euros').value=c?.euros_per_entry||30;$('mult').value=c?.delivery_multiplier||2;
-    }catch(e){show('msg','Error al cargar el panel: '+(e.message||e));}
-  }
-
-  $('loginForm').addEventListener('submit',async e=>{
-    e.preventDefault();const btn=$('loginBtn');busy(btn,true,'Entrando…');show('msg','');
-    try{await account.createEmailPasswordSession({email:$('email').value.trim().toLowerCase(),password:$('pass').value});await render();}
-    catch(e){show('msg','No se pudo iniciar sesión: '+(e.message||e));}
-    finally{busy(btn,false);}
-  });
-
-  $('logout').addEventListener('click',async()=>{try{await account.deleteSession({sessionId:'current'});}finally{user=null;await render();}});
-
-  $('ticketList').addEventListener('click',async e=>{
-    const b=e.target.closest('button[data-id]');if(!b)return;busy(b,true,b.dataset.ok==='1'?'Validando…':'Rechazando…');show('ticketMsg','');
-    try{
-      const t=await db.getRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:b.dataset.id});
-      const camps=await rows(C.campaignsTable);const c=camps.find(x=>x.$id===t.campaign_id);const ok=b.dataset.ok==='1';
-      const entries=Math.floor(Number(t.amount||0)/Number(c?.euros_per_entry||30))*(t.channel==='domicilio'?Number(c?.delivery_multiplier||2):1);
-      await db.updateRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:t.$id,data:{status:ok?'validado':'rechazado',entries:ok?entries:0,validated_at:new Date().toISOString()}});
-      show('ticketMsg',ok?'Ticket validado.':'Ticket rechazado.',true);await render();
-    }catch(e){show('ticketMsg','No se pudo actualizar el ticket: '+(e.message||e));busy(b,false);}
-  });
-
-  $('saveCamp').addEventListener('click',async()=>{
-    const b=$('saveCamp');busy(b,true,'Guardando…');show('campMsg','');
-    try{
-      const camps=await rows(C.campaignsTable);const c=camps.find(x=>x.active);if(!c)throw new Error('No hay campaña activa.');
-      const euros=Number($('euros').value),mult=Number($('mult').value);if(!(euros>0)||!(mult>=1))throw new Error('Revisa los valores de la promoción.');
-      await db.updateRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:c.$id,data:{name:$('campName').value.trim()||c.name,euros_per_entry:euros,delivery_multiplier:Math.floor(mult)}});
-      show('campMsg','Promoción actualizada.',true);await render();
-    }catch(e){show('campMsg','No se pudo guardar: '+(e.message||e));}
-    finally{busy(b,false);}
-  });
-
-  $('newCamp').addEventListener('click',async()=>{
-    if(!confirm('¿Crear una nueva promoción? Los contadores visibles empezarán a cero y el histórico se conservará.'))return;
-    const b=$('newCamp');busy(b,true,'Creando…');show('campMsg','');
-    try{
-      const camps=await rows(C.campaignsTable);for(const c of camps.filter(x=>x.active)){await db.updateRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:c.$id,data:{active:false}});}
-      const name=(prompt('Nombre de la nueva promoción:','Nueva promoción')||'Nueva promoción').trim();
-      await db.createRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:ID.unique(),data:{name,active:true,euros_per_entry:30,delivery_multiplier:2,created_at:new Date().toISOString()}});
-      show('campMsg','Nueva promoción creada.',true);await render();
-    }catch(e){show('campMsg','No se pudo crear la promoción: '+(e.message||e));}
-    finally{busy(b,false);}
-  });
-
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  render();
-})();
-</script>
-</body>
-</html>
+'use strict';const C=window.APP_CONFIG,$=id=>document.getElementById(id);function fatal(t){const m=$('msg');if(m){m.textContent=t;m.className='status err';}}if(!window.Appwrite){fatal('No se pudo cargar Appwrite. Recarga la página.');return;}if(!C){fatal('Falta la configuración de la aplicación.');return;}const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])),eur=n=>Number(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'}),client=new Appwrite.Client().setEndpoint(C.endpoint).setProject(C.projectId),account=new Appwrite.Account(client),db=new Appwrite.TablesDB(client),storage=new Appwrite.Storage(client),ID=Appwrite.ID;let user=null;function show(id,text,ok=false){const el=$(id);el.textContent=text||'';el.className='status '+(ok?'ok':'err');}function busy(btn,on,text){btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=text;}else if(btn.dataset.old){btn.textContent=btn.dataset.old;}}async function me(){try{return await account.get();}catch{return null;}}async function rows(tableId){const r=await db.listRows({databaseId:C.databaseId,tableId:tableId,total:false,ttl:0});return r.rows||[];}async function isAdmin(){user=await me();return !!user&&Array.isArray(user.labels)&&user.labels.includes('admin');}
+async function render(){try{if(!(await isAdmin())){$('dash').classList.add('hidden');$('auth').classList.remove('hidden');if(user)show('msg','Has iniciado sesión, pero este usuario no tiene la etiqueta admin.');return;}$('auth').classList.add('hidden');$('dash').classList.remove('hidden');show('msg','');const [cs,ts,camps]=await Promise.all([rows(C.customersTable),rows(C.ticketsTable),rows(C.campaignsTable)]),c=camps.find(x=>x.active)||null,current=c?ts.filter(t=>t.campaign_id===c.$id):[];$('clients').textContent=cs.length;$('marketingCount').textContent=cs.filter(x=>x.marketing_consent).length;$('pending').textContent=ts.filter(x=>x.status==='pendiente').length;$('entries').textContent=current.filter(x=>x.status==='validado').reduce((a,t)=>a+Number(t.entries||0),0);$('customerList').innerHTML=cs.length?`<div class="table-wrap"><table><tr><th>Nombre</th><th>Email</th><th>Marketing</th></tr>${cs.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.email)}</td><td>${x.marketing_consent?'Sí':'No'}</td></tr>`).join('')}</table></div>`:'<div class="muted">Sin clientes.</div>';$('ticketList').innerHTML=ts.length?ts.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).map(t=>{let photo='';if(t.photo_file_id){try{photo=`<img class="photo" alt="Foto de ticket" src="${esc(String(storage.getFileView({bucketId:C.ticketsBucket,fileId:t.photo_file_id})))}">`;}catch{}}return `<div class="item"><div class="top"><b>${esc(t.customer_email)}</b><span class="badge ${esc(t.status)}">${esc(t.status)}</span></div><div class="muted">${eur(t.amount)} · ${esc(t.ticket_number||'sin número')} · ${esc(t.channel)}</div>${photo}${t.status==='pendiente'?`<p><button type="button" data-id="${esc(t.$id)}" data-ok="1">Validar</button> <button type="button" data-id="${esc(t.$id)}" data-ok="0" class="danger">Rechazar</button></p>`:''}</div>`;}).join(''):'<div class="muted">Sin tickets.</div>';$('campName').value=c?.name||'';$('euros').value=c?.euros_per_entry||30;$('mult').value=c?.delivery_multiplier||2;}catch(e){show('msg','Error al cargar el panel: '+(e.message||e));}}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');busy(btn,true,'Entrando…');show('msg','');try{await account.createEmailPasswordSession({email:$('email').value.trim().toLowerCase(),password:$('pass').value});await render();}catch(e){show('msg','No se pudo iniciar sesión: '+(e.message||e));}finally{busy(btn,false);}});$('logout').addEventListener('click',async()=>{try{await account.deleteSession({sessionId:'current'});}finally{user=null;await render();}});$('ticketList').addEventListener('click',async e=>{const b=e.target.closest('button[data-id]');if(!b)return;busy(b,true,b.dataset.ok==='1'?'Validando…':'Rechazando…');show('ticketMsg','');try{const t=await db.getRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:b.dataset.id}),c=(await rows(C.campaignsTable)).find(x=>x.$id===t.campaign_id),ok=b.dataset.ok==='1',entries=Math.floor(Number(t.amount||0)/Number(c?.euros_per_entry||30))*(t.channel==='domicilio'?Number(c?.delivery_multiplier||2):1);await db.updateRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:t.$id,data:{status:ok?'validado':'rechazado',entries:ok?entries:0,validated_at:new Date().toISOString()}});show('ticketMsg',ok?'Ticket validado.':'Ticket rechazado.',true);await render();}catch(e){show('ticketMsg','No se pudo actualizar el ticket: '+(e.message||e));busy(b,false);}});$('saveCamp').addEventListener('click',async()=>{const b=$('saveCamp');busy(b,true,'Guardando…');show('campMsg','');try{const camps=await rows(C.campaignsTable),c=camps.find(x=>x.active);if(!c)throw new Error('No hay campaña activa.');const euros=Number($('euros').value),mult=Number($('mult').value);if(!(euros>0)||!(mult>=1))throw new Error('Revisa los valores de la promoción.');await db.updateRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:c.$id,data:{name:$('campName').value.trim()||c.name,euros_per_entry:euros,delivery_multiplier:Math.floor(mult)}});show('campMsg','Promoción actualizada.',true);await render();}catch(e){show('campMsg','No se pudo guardar: '+(e.message||e));}finally{busy(b,false);}});$('newCamp').addEventListener('click',async()=>{if(!confirm('¿Crear una nueva promoción? Los contadores visibles empezarán a cero y el histórico se conservará.'))return;const b=$('newCamp');busy(b,true,'Creando…');show('campMsg','');try{const camps=await rows(C.campaignsTable);for(const c of camps.filter(x=>x.active))await db.updateRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:c.$id,data:{active:false}});const name=(prompt('Nombre de la nueva promoción:','Nueva promoción')||'Nueva promoción').trim();await db.createRow({databaseId:C.databaseId,tableId:C.campaignsTable,rowId:ID.unique(),data:{name,active:true,euros_per_entry:30,delivery_multiplier:2,created_at:new Date().toISOString()}});show('campMsg','Nueva promoción creada.',true);await render();}catch(e){show('campMsg','No se pudo crear la promoción: '+(e.message||e));}finally{busy(b,false);}});if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});render().catch(e=>fatal('Error de inicio: '+(e.message||e)));})();
+</script></body></html>
