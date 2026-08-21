@@ -1,1 +1,1 @@
-{"name":"Sabor Mar Admin","short_name":"Sabor Admin","start_url":"./admin.html","display":"standalone","background_color":"#07131b","theme_color":"#07131b"}
+{"id":"./admin","name":"Sabor Mar Admin","short_name":"Sabor Admin","start_url":"./admin.html","scope":"./","display":"standalone","background_color":"#07131b","theme_color":"#07131b","icons":[{"src":"./icon-admin.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
