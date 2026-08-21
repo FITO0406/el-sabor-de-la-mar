@@ -7,7 +7,7 @@
   <title>El Sabor de la Mar</title>
   <link rel="manifest" href="manifest-client.json">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@26.2.0"></script>
 </head>
 <body>
 <div class="shell">
@@ -40,147 +40,51 @@
   </section>
 
   <section id="dash" class="hidden">
-    <div class="card">
-      <div class="top">
-        <div><div class="muted">Hola</div><h2 id="hello"></h2></div>
-        <button id="logout" type="button" class="secondary">Salir</button>
-      </div>
-    </div>
-
+    <div class="card"><div class="top"><div><div class="muted">Hola</div><h2 id="hello"></h2></div><button id="logout" type="button" class="secondary">Salir</button></div></div>
     <div class="grid">
       <div class="metric"><div class="muted">Participaciones</div><div id="entries" class="v">0</div></div>
       <div class="metric"><div class="muted">Tickets validados</div><div id="ticketsCount" class="v">0</div></div>
       <div class="metric"><div class="muted">Compra acumulada</div><div id="spend" class="v">0 €</div></div>
       <div class="metric"><div class="muted">Promoción</div><div id="camp" class="v small">—</div></div>
     </div>
-
-    <div class="card">
-      <h2>📸 Fotografiar ticket</h2>
-      <form id="ticketForm">
-        <div class="row">
-          <div><label for="photo">Foto</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
-          <div><label for="channel">Canal</label><select id="channel"><option value="tienda">Tienda</option><option value="domicilio">Domicilio</option></select></div>
-        </div>
-        <div class="row">
-          <div><label for="amount">Importe (€)</label><input id="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></div>
-          <div><label for="ticketNo">Nº ticket</label><input id="ticketNo" maxlength="80"></div>
-        </div>
-        <button id="send" type="submit">Enviar ticket</button>
-      </form>
-      <div id="sendMsg" class="status" role="status" aria-live="polite"></div>
-    </div>
-
+    <div class="card"><h2>📸 Fotografiar ticket</h2><form id="ticketForm"><div class="row"><div><label for="photo">Foto</label><input id="photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div><div><label for="channel">Canal</label><select id="channel"><option value="tienda">Tienda</option><option value="domicilio">Domicilio</option></select></div></div><div class="row"><div><label for="amount">Importe (€)</label><input id="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></div><div><label for="ticketNo">Nº ticket</label><input id="ticketNo" maxlength="80"></div></div><button id="send" type="submit">Enviar ticket</button></form><div id="sendMsg" class="status" role="status" aria-live="polite"></div></div>
     <div class="card"><h2>Mis tickets</h2><div id="list"></div></div>
   </section>
 </div>
-
 <script src="config.js"></script>
 <script>
 (() => {
   'use strict';
-  const C = window.APP_CONFIG;
-  const $ = id => document.getElementById(id);
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const eur = n => Number(n || 0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
-  const client = new Appwrite.Client().setEndpoint(C.endpoint).setProject(C.projectId);
-  const account = new Appwrite.Account(client);
-  const db = new Appwrite.TablesDB(client);
-  const storage = new Appwrite.Storage(client);
-  const ID = Appwrite.ID;
-  const Permission = Appwrite.Permission;
-  const Role = Appwrite.Role;
-  let user = null;
-
-  function show(id, text, ok=false){ const el=$(id); el.textContent=text || ''; el.className='status ' + (ok?'ok':'err'); }
-  function busy(btn, on, text){ btn.disabled=on; if(on){btn.dataset.old=btn.textContent;btn.textContent=text;} else if(btn.dataset.old){btn.textContent=btn.dataset.old;} }
-  async function me(){ try { return await account.get(); } catch { return null; } }
-  async function rows(tableId){ const r = await db.listRows({databaseId:C.databaseId,tableId:tableId,total:false}); return r.rows || []; }
-  async function activeCampaign(){ const all=await rows(C.campaignsTable); return all.find(x=>x.active) || null; }
-
-  async function ensureCustomer(current, marketing=false){
-    try {
-      await db.getRow({databaseId:C.databaseId,tableId:C.customersTable,rowId:current.$id});
-      return;
-    } catch(e) {
-      if(e && e.code && e.code !== 404) throw e;
-    }
-    await db.createRow({
-      databaseId:C.databaseId,
-      tableId:C.customersTable,
-      rowId:current.$id,
-      data:{name:current.name || current.email.split('@')[0],email:current.email,marketing_consent:Boolean(marketing),active:true,created_at:new Date().toISOString()},
-      permissions:[Permission.read(Role.user(current.$id)),Permission.update(Role.user(current.$id))]
-    });
+  const C=window.APP_CONFIG,$=id=>document.getElementById(id);
+  function fatal(text){const m=$('msg');if(m){m.textContent=text;m.className='status err';}}
+  if(!window.Appwrite){fatal('No se pudo cargar Appwrite. Recarga la página.');return;}
+  if(!C){fatal('Falta la configuración de la aplicación.');return;}
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const eur=n=>Number(n||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+  const client=new Appwrite.Client().setEndpoint(C.endpoint).setProject(C.projectId);
+  const account=new Appwrite.Account(client),db=new Appwrite.TablesDB(client),storage=new Appwrite.Storage(client);
+  const ID=Appwrite.ID,Permission=Appwrite.Permission,Role=Appwrite.Role;let user=null;
+  function show(id,text,ok=false){const el=$(id);el.textContent=text||'';el.className='status '+(ok?'ok':'err');}
+  function busy(btn,on,text){btn.disabled=on;if(on){btn.dataset.old=btn.textContent;btn.textContent=text;}else if(btn.dataset.old){btn.textContent=btn.dataset.old;}}
+  async function me(){try{return await account.get();}catch{return null;}}
+  async function rows(tableId){const r=await db.listRows({databaseId:C.databaseId,tableId:tableId,total:false,ttl:0});return r.rows||[];}
+  async function activeCampaign(){return (await rows(C.campaignsTable)).find(x=>x.active)||null;}
+  async function ensureCustomer(current,marketing=false){
+    try{await db.getRow({databaseId:C.databaseId,tableId:C.customersTable,rowId:current.$id});return;}
+    catch(e){if(e?.code!==404)throw e;}
+    await db.createRow({databaseId:C.databaseId,tableId:C.customersTable,rowId:current.$id,data:{name:current.name||current.email.split('@')[0],email:current.email,marketing_consent:Boolean(marketing),active:true,created_at:new Date().toISOString()},permissions:[Permission.read(Role.user(current.$id)),Permission.update(Role.user(current.$id))]});
   }
-
   async function render(){
-    try {
-      user = await me();
-      if(!user){ $('auth').classList.remove('hidden'); $('dash').classList.add('hidden'); return; }
-      $('auth').classList.add('hidden'); $('dash').classList.remove('hidden');
-      $('hello').textContent = user.name || user.email;
-      const [c, ts] = await Promise.all([activeCampaign(), rows(C.ticketsTable)]);
-      $('camp').textContent = c?.name || 'Sin campaña activa';
-      const current = c ? ts.filter(t=>t.campaign_id===c.$id) : [];
-      const valid = current.filter(t=>t.status==='validado');
-      $('entries').textContent = valid.reduce((a,t)=>a+Number(t.entries||0),0);
-      $('ticketsCount').textContent = valid.length;
-      $('spend').textContent = eur(valid.reduce((a,t)=>a+Number(t.amount||0),0));
-      $('list').innerHTML = ts.length ? ts.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).map(t=>`<div class="item"><div class="top"><b>${esc(t.ticket_number||'Ticket')}</b><span class="badge ${esc(t.status)}">${esc(t.status)}</span></div><div class="muted">${eur(t.amount)} · ${esc(t.channel)}</div><div class="muted">Participaciones: ${Number(t.entries||0)}</div></div>`).join('') : '<div class="muted">Aún no hay tickets.</div>';
-    } catch(e){ show('msg','Error al cargar: '+(e.message||e)); }
+    user=await me();if(!user){$('auth').classList.remove('hidden');$('dash').classList.add('hidden');return;}
+    $('auth').classList.add('hidden');$('dash').classList.remove('hidden');$('hello').textContent=user.name||user.email;
+    try{const [c,all]=await Promise.all([activeCampaign(),rows(C.ticketsTable)]);const ts=all.filter(t=>t.customer_email===user.email);$('camp').textContent=c?.name||'Sin campaña activa';const valid=(c?ts.filter(t=>t.campaign_id===c.$id):[]).filter(t=>t.status==='validado');$('entries').textContent=valid.reduce((a,t)=>a+Number(t.entries||0),0);$('ticketsCount').textContent=valid.length;$('spend').textContent=eur(valid.reduce((a,t)=>a+Number(t.amount||0),0));$('list').innerHTML=ts.length?ts.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).map(t=>`<div class="item"><div class="top"><b>${esc(t.ticket_number||'Ticket')}</b><span class="badge ${esc(t.status)}">${esc(t.status)}</span></div><div class="muted">${eur(t.amount)} · ${esc(t.channel)}</div><div class="muted">Participaciones: ${Number(t.entries||0)}</div></div>`).join(''):'<div class="muted">Aún no hay tickets.</div>';}
+    catch(e){show('msg','Has iniciado sesión, pero hay un error de permisos/datos: '+(e.message||e));}
   }
-
-  $('signupForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn=$('signupBtn');
-    const name=$('name').value.trim();
-    const email=$('signupEmail').value.trim().toLowerCase();
-    const password=$('signupPass').value;
-    if(!name || !email || password.length<8){ show('msg','Completa nombre, email y una contraseña de al menos 8 caracteres.'); return; }
-    busy(btn,true,'Creando…'); show('msg','');
-    try {
-      await account.create({userId:ID.unique(),email,password,name});
-      await account.createEmailPasswordSession({email,password});
-      user=await account.get();
-      await ensureCustomer(user,$('marketing').checked);
-      show('msg','Cuenta creada correctamente.',true);
-      await render();
-    } catch(e){
-      show('msg', e?.code===409 ? 'Ese email ya está registrado. Usa “Entrar”.' : 'No se pudo crear la cuenta: '+(e.message||e));
-    } finally { busy(btn,false); }
-  });
-
-  $('loginForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn=$('loginBtn'); const email=$('loginEmail').value.trim().toLowerCase(); const password=$('loginPass').value;
-    busy(btn,true,'Entrando…'); show('msg','');
-    try { await account.createEmailPasswordSession({email,password}); user=await account.get(); await ensureCustomer(user,false); await render(); }
-    catch(e){ show('msg','No se pudo iniciar sesión: '+(e.message||e)); }
-    finally { busy(btn,false); }
-  });
-
-  $('logout').addEventListener('click', async()=>{ try{await account.deleteSession({sessionId:'current'});}finally{user=null;await render();} });
-
-  $('ticketForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn=$('send'); const file=$('photo').files[0]; const amount=Number($('amount').value);
-    if(!file){show('sendMsg','Haz una foto del ticket.');return;} if(!amount||amount<=0){show('sendMsg','Indica un importe válido.');return;}
-    if(file.size>5*1024*1024){show('sendMsg','La foto supera 5 MB.');return;}
-    busy(btn,true,'Enviando…'); show('sendMsg','');
-    try {
-      const c=await activeCampaign(); if(!c) throw new Error('No hay campaña activa.');
-      const uploaded=await storage.createFile({bucketId:C.ticketsBucket,fileId:ID.unique(),file,permissions:[Permission.read(Role.user(user.$id))]});
-      const data={customer_email:user.email,amount,channel:$('channel').value,status:'pendiente',entries:0,photo_file_id:uploaded.$id,campaign_id:c.$id,created_at:new Date().toISOString()};
-      const n=$('ticketNo').value.trim(); if(n) data.ticket_number=n;
-      await db.createRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:ID.unique(),data,permissions:[Permission.read(Role.user(user.$id))]});
-      $('ticketForm').reset(); show('sendMsg','Ticket enviado. Pendiente de validación.',true); await render();
-    } catch(e){ show('sendMsg','No se pudo enviar el ticket: '+(e.message||e)); }
-    finally { busy(btn,false); }
-  });
-
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
-  render();
+  $('signupForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('signupBtn'),name=$('name').value.trim(),email=$('signupEmail').value.trim().toLowerCase(),password=$('signupPass').value;if(!name||!email||password.length<8){show('msg','Completa nombre, email y contraseña de al menos 8 caracteres.');return;}busy(btn,true,'Creando…');show('msg','');try{await account.create({userId:ID.unique(),email,password,name});await account.createEmailPasswordSession({email,password});user=await account.get();try{await ensureCustomer(user,$('marketing').checked);}catch(e){show('msg','Cuenta creada, pero falta permiso para crear el perfil: '+(e.message||e));await render();return;}show('msg','Cuenta creada correctamente.',true);await render();}catch(e){show('msg',e?.code===409?'Ese email ya está registrado. Usa Entrar.':'No se pudo crear la cuenta: '+(e.message||e));}finally{busy(btn,false);}});
+  $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');busy(btn,true,'Entrando…');show('msg','');try{await account.createEmailPasswordSession({email:$('loginEmail').value.trim().toLowerCase(),password:$('loginPass').value});user=await account.get();try{await ensureCustomer(user,false);}catch{}await render();}catch(e){show('msg','No se pudo iniciar sesión: '+(e.message||e));}finally{busy(btn,false);}});
+  $('logout').addEventListener('click',async()=>{try{await account.deleteSession({sessionId:'current'});}finally{user=null;await render();}});
+  $('ticketForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('send'),file=$('photo').files[0],amount=Number($('amount').value);if(!file){show('sendMsg','Haz una foto del ticket.');return;}if(!(amount>0)){show('sendMsg','Indica un importe válido.');return;}busy(btn,true,'Enviando…');show('sendMsg','');try{const c=await activeCampaign();if(!c)throw new Error('No hay campaña activa.');const uploaded=await storage.createFile({bucketId:C.ticketsBucket,fileId:ID.unique(),file,permissions:[Permission.read(Role.user(user.$id))]});const data={customer_email:user.email,amount,channel:$('channel').value,status:'pendiente',entries:0,photo_file_id:uploaded.$id,campaign_id:c.$id,created_at:new Date().toISOString()};const n=$('ticketNo').value.trim();if(n)data.ticket_number=n;await db.createRow({databaseId:C.databaseId,tableId:C.ticketsTable,rowId:ID.unique(),data,permissions:[Permission.read(Role.user(user.$id))]});$('ticketForm').reset();show('sendMsg','Ticket enviado. Pendiente de validación.',true);await render();}catch(e){show('sendMsg','No se pudo enviar el ticket: '+(e.message||e));}finally{busy(btn,false);}});
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});render().catch(e=>fatal('Error de inicio: '+(e.message||e)));
 })();
 </script>
-</body>
-</html>
+</body></html>
